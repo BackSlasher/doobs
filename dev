@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+#
+# doobs dev driver. Every command runs inside the build container;
+# the only things needed on the host are podman and this script.
+#
+#   ./dev image                  build/refresh the toolchain image
+#   ./dev build                  assemble the debug APK
+#   ./dev test                   run JVM unit tests (parser)
+#   ./dev check                  test + lint
+#   ./dev devices                list phones adb can see
+#   ./dev pair <ip:port> <code>  pair with a phone (Wireless debugging -> Pair with code)
+#   ./dev connect <ip:port>      remember + connect to a phone (Wireless debugging)
+#   ./dev usb                    forget that address, go back to USB
+#   ./dev install                build, then install onto the phone
+#   ./dev run                    install, then fire the assist intent
+#   ./dev logcat                 tail doobs' logs
+#   ./dev adb <args...>          raw adb
+#   ./dev gradle <args...>       raw gradle
+#   ./dev shell                  interactive shell in the container
+#   ./dev clean                  drop build outputs and cache volumes
+#
+set -euo pipefail
+
+IMAGE=${DOOBS_IMAGE:-doobs-build}
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+DEVICE_FILE="$ROOT/.dev-device"
+APK=app/build/outputs/apk/debug/app-debug.apk
+
+have_image() { podman image exists "$IMAGE"; }
+
+ensure_image() {
+  have_image || {
+    echo "==> toolchain image '$IMAGE' missing; building it once" >&2
+    build_image
+  }
+}
+
+build_image() {
+  podman build -t "$IMAGE" -f "$ROOT/Containerfile" "$ROOT"
+}
+
+# --network=host so containerised adb can reach a phone over wireless debugging.
+# That shares the host's network namespace, so adb gets its own server port
+# rather than silently piggybacking on a host adb server.
+# --userns=keep-id so build outputs land owned by the host user.
+# :U on the volumes so podman chowns them to that uid.
+in_container() {
+  local tty=()
+  [[ -t 0 && -t 1 ]] && tty=(-it)
+  podman run --rm "${tty[@]}" \
+    --userns=keep-id \
+    --network=host \
+    -e ANDROID_ADB_SERVER_PORT=5038 \
+    -v "$ROOT:/work:Z" \
+    -v doobs-gradle:/cache/gradle:U \
+    -v doobs-android:/cache/android:U \
+    -w /work \
+    "$IMAGE" "$@"
+}
+
+remembered() { tr -d '[:space:]' < "$DEVICE_FILE"; }
+
+# Where adb runs. USB goes through the HOST's adb: a rootless container cannot
+# open /dev/bus/usb device nodes, because the host group credential that udev
+# requires does not survive into the container even with --group-add=keep-groups.
+# Wireless debugging has no such problem, so it stays in the container.
+# Override with DOOBS_ADB=host|container.
+adb_mode() {
+  case "${DOOBS_ADB:-auto}" in
+    host|container) echo "${DOOBS_ADB}" ;;
+    *) if [[ -f $DEVICE_FILE ]]; then echo container
+       elif command -v adb >/dev/null; then echo host
+       else echo container; fi ;;
+  esac
+}
+
+adb_in() {
+  if [[ $(adb_mode) == host ]]; then
+    command -v adb >/dev/null || {
+      echo "no adb on the host. Use wireless debugging instead: ./dev connect <ip:port>" >&2
+      exit 1
+    }
+    if ! id -nG | tr ' ' '\n' | grep -qx adbusers; then
+      echo "note: this shell is not in the adbusers group, so a USB phone will be invisible." >&2
+      echo "      once:  sudo usermod -aG adbusers \"\$USER\"" >&2
+      echo "      then a new shell, or wrap a command: newgrp adbusers <<< './dev install'" >&2
+    fi
+    eval "adb $*"
+    return
+  fi
+
+  # adb's server dies with each container, so a TCP reconnect happens every
+  # time — cheap and idempotent.
+  local prelude="" select=""
+  if [[ -f $DEVICE_FILE ]]; then
+    local dev; dev=$(remembered)
+    prelude="adb connect '$dev' >/dev/null 2>&1 || true;"
+    select="-s '$dev'"
+  fi
+  in_container bash -lc "$prelude adb $select $*"
+}
+
+cmd=${1:-build}
+shift || true
+
+case "$cmd" in
+  image)   build_image ;;
+
+  build)   ensure_image; in_container gradle --console=plain assembleDebug
+           echo "==> $APK" ;;
+
+  test)    ensure_image; in_container gradle --console=plain test ;;
+
+  check)   ensure_image; in_container gradle --console=plain test lint ;;
+
+  gradle)  ensure_image; in_container gradle --console=plain "$@" ;;
+
+  pair)    ensure_image
+           [[ $# -eq 2 ]] || { echo "usage: ./dev pair <ip:pairing-port> <code>" >&2; exit 1; }
+           in_container adb pair "$1" "$2" ;;
+
+  connect) ensure_image
+           [[ $# -eq 1 ]] || { echo "usage: ./dev connect <ip:debug-port>" >&2; exit 1; }
+           printf '%s' "$1" > "$DEVICE_FILE"
+           in_container adb connect "$1" ;;
+
+  usb)     rm -f "$DEVICE_FILE"
+           echo "==> forgetting the wireless address; back to USB" ;;
+
+  devices) ensure_image; adb_in devices -l ;;
+
+  install) ensure_image
+           in_container gradle --console=plain assembleDebug
+           adb_in "wait-for-device install -r -t $APK"
+           echo "==> installed. Set it as the assistant: Settings -> Apps -> Default apps -> Digital assistant app" ;;
+
+  run)     ensure_image
+           in_container gradle --console=plain assembleDebug
+           adb_in "wait-for-device install -r -t $APK"
+           adb_in "shell am start -a android.intent.action.ASSIST" ;;
+
+  logcat)  ensure_image; adb_in "wait-for-device logcat -v brief -s doobs:V" ;;
+
+  adb)     ensure_image; adb_in "$*" ;;
+
+  shell)   ensure_image; in_container bash "$@" ;;
+
+  clean)   ensure_image
+           in_container gradle --console=plain clean || true
+           podman volume rm -f doobs-gradle doobs-android ;;
+
+  *)       sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//;/^set -euo/d'
+           exit 1 ;;
+esac

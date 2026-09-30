@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">doobs</string>
+
+    <string name="prompt_listening">Listening…</string>
+    <string name="prompt_tap_to_speak">Tap to speak</string>
+    <string name="prompt_thinking">…</string>
+
+    <string name="mic_content_description">Speak</string>
+
+    <string name="hint_examples">“set an alarm for 7:30”\n“remind me at 6 to take the bins out”</string>
+
+    <string name="err_no_mic_permission">doobs needs the microphone to hear you.</string>
+    <string name="err_no_recognizer">No speech recognizer on this device.</string>
+    <string name="err_heard_nothing">Didn\'t catch that.</string>
+    <string name="err_audio">Microphone trouble. Try again.</string>
+    <string name="err_network">Speech recognition needs a network right now.</string>
+    <string name="err_language">No speech recognition for this phone\'s language.</string>
+    <string name="err_unknown">Something went wrong. Try again.</string>
+    <string name="err_no_clock_app">No app on this phone can set alarms.</string>
+    <string name="err_locked">Unlock your phone first.</string>
+
+    <string name="ok_alarm">Alarm for %1$s</string>
+    <string name="ok_reminder">%1$s at %2$s</string>
+    <string name="ok_timer">%1$s in %2$s</string>
+
+    <string name="unparsed">I can only do alarms and reminders so far.</string>
+
+    <plurals name="hours">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
+    <plurals name="minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <plurals name="seconds">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
+</resources>

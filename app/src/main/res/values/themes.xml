@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Overridden by values-v29 with the DayNight variant. -->
+    <style name="Theme.Doobs" parent="@android:style/Theme.DeviceDefault" />
+
+    <!-- The assist UI sits over whatever you were doing, like the old assistant did. -->
+    <style name="Theme.Doobs.Assist" parent="@android:style/Theme.DeviceDefault.Dialog.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowCloseOnTouchOutside">true</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+    </style>
+</resources>

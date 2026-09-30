@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_sheet"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingStart="24dp"
+    android:paddingTop="28dp"
+    android:paddingEnd="24dp"
+    android:paddingBottom="24dp">
+
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/prompt_tap_to_speak"
+        android:textColor="@color/on_sheet"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/transcript"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:minLines="2"
+        android:text="@string/hint_examples"
+        android:textColor="@color/on_sheet_dim"
+        android:textSize="15sp" />
+
+    <ImageButton
+        android:id="@+id/mic"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/bg_mic"
+        android:contentDescription="@string/mic_content_description"
+        android:scaleType="center"
+        android:src="@drawable/ic_mic"
+        android:tint="@color/sheet" />
+</LinearLayout>
