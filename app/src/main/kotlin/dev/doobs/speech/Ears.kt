@@ -31,6 +31,7 @@ class Ears(private val context: Context, private val listener: Listener) {
     private data class Attempt(val language: String?, val offline: Boolean)
 
     private val main = Handler(Looper.getMainLooper())
+    private val models = Models(context)
     private var recognizer: SpeechRecognizer? = null
     private var attempts: List<Attempt> = emptyList()
     private var attempt = 0
@@ -47,9 +48,32 @@ class Ears(private val context: Context, private val listener: Listener) {
             listener.onTrouble(context.getString(R.string.err_no_recognizer))
             return
         }
+        // Which models are installed decides the whole ladder — this phone has
+        // en-US sitting there while its locale says en-IL — so on the first
+        // summon it is worth the ~60ms to ask before planning rather than
+        // after. Budgeted, because a recogniser that never calls back must not
+        // cost us the microphone.
+        if (models.usable && Models.installedCache.isEmpty()) {
+            var started = false
+            val begin = {
+                if (!started) {
+                    started = true
+                    beginLadder()
+                }
+            }
+            main.postDelayed({ begin() }, MODEL_QUERY_BUDGET_MS)
+            models.query(null) { main.post { begin() } }
+        } else {
+            models.query(null) { } // refresh in the background; costs this summon nothing
+            beginLadder()
+        }
+    }
+
+    private fun beginLadder() {
         attempts = planAttempts()
         attempt = 0
         sawLanguageProblem = false
+        logd("ladder: $attempts")
         start()
     }
 
@@ -60,6 +84,12 @@ class Ears(private val context: Context, private val listener: Listener) {
             runCatching { it.destroy() }
         }
         recognizer = null
+    }
+
+    /** Release the on-device handle too. Call when the UI is finished with. */
+    fun close() {
+        stop()
+        models.close()
     }
 
     /**
@@ -73,9 +103,21 @@ class Ears(private val context: Context, private val listener: Listener) {
      */
     private fun planAttempts(): List<Attempt> {
         val locale = Locale.getDefault().stripExtensions()
+        val tag = locale.toLanguageTag().takeIf { it.isNotBlank() && it != "und" }
+        val language = locale.language.takeIf { it.isNotBlank() }
+
+        // A model the phone has actually downloaded beats anything we could
+        // guess from the locale, so it goes to the top of the ladder.
+        val installed = Models.installedCache
+        val ready = listOfNotNull(
+            installed.firstOrNull { tag != null && it.equals(tag, ignoreCase = true) },
+            installed.firstOrNull { language != null && it.startsWith(language, ignoreCase = true) },
+        ).distinct()
+
         val languages: List<String?> = buildList {
-            locale.toLanguageTag().takeIf { it.isNotBlank() && it != "und" }?.let { add(it) }
-            locale.language.takeIf { it.isNotBlank() }?.let { add(it) }
+            addAll(ready)
+            tag?.let { add(it) }
+            language?.let { add(it) }
             add(null) // whatever the recogniser considers its own default
         }.distinct()
 
@@ -86,6 +128,15 @@ class Ears(private val context: Context, private val listener: Listener) {
             languages.map { Attempt(it, offline) }
         }
     }
+
+    private companion object {
+        /** How long a first summon will wait to learn which models are installed. */
+        const val MODEL_QUERY_BUDGET_MS = 300L
+    }
+
+    /** The language we would most like an on-device model for. */
+    private fun preferredLanguage(): String? =
+        Locale.getDefault().stripExtensions().toLanguageTag().takeIf { it.isNotBlank() && it != "und" }
 
     private fun start() {
         val current = attempts.getOrNull(attempt) ?: return
@@ -160,9 +211,15 @@ class Ears(private val context: Context, private val listener: Listener) {
             logw("recognizer error $error, after ${attempt + 1} of ${attempts.size} attempts")
             // A chain that died of missing language packs ends on whatever the
             // last rung complained about — usually the network. Say the thing
-            // the user can actually act on instead.
+            // the user can actually act on instead, and ask the system for the
+            // model so that "act on it" needs no trip through Settings.
             val message = if (sawLanguageProblem && error.isAboutSetup()) {
-                R.string.err_language
+                if (models.usable) {
+                    models.download(preferredLanguage())
+                    R.string.err_language_fetching
+                } else {
+                    R.string.err_language
+                }
             } else {
                 messageFor(error)
             }

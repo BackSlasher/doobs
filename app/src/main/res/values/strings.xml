@@ -16,6 +16,7 @@
     <string name="err_audio">Microphone trouble. Try again.</string>
     <string name="err_network">Speech recognition needs a network right now.</string>
     <string name="err_language">No speech recognition for this phone\'s language.</string>
+    <string name="err_language_fetching">Fetching offline speech for your language. Try again in a minute.</string>
     <string name="err_unknown">Something went wrong. Try again.</string>
     <string name="err_no_clock_app">No app on this phone can set alarms.</string>
     <string name="err_locked">Unlock your phone first.</string>

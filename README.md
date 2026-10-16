@@ -8,10 +8,9 @@ No wakeword and no always-on microphone: doobs listens only when you summon it,
 parses what you said on-device, and hands the result to the clock app.
 
 Speech-to-text is the platform's, so whether it leaves the phone is the
-platform's call, not doobs'. doobs asks for offline recognition first and only
-widens to the network when the device refuses — see
-[Language packs](#language-packs), which is worth reading, because on a stock
-Pixel the offline attempt fails and audio does go to Google.
+platform's call, not doobs'. doobs asks the platform which on-device models are
+installed and prefers those, falling back to the network only when the device
+has nothing that fits — see [Language packs](#language-packs).
 
 ## What it understands
 
@@ -187,39 +186,65 @@ other app. A side effect is that doobs shows up under Settings → Voice input.
 
 ## Language packs
 
-`Ears` does not trust the phone's locale as a language tag, because a locale is
-not one. This Pixel's default is `en-IL-u-mu-celsius` — English, Israel, show
-temperatures in Celsius — and handing that over whole gets
-`ERROR_LANGUAGE_NOT_SUPPORTED` before the microphone ever opens. So extensions
-are stripped and a ladder is tried, widening at each step:
+Starting the recognizer means committing up front to a language and to
+offline-or-not, and both can be wrong in ways that fail instantly — before the
+microphone opens. So `Ears` does not guess once; it asks the platform what is
+installed, then walks a ladder of ways to ask.
+
+**A locale is not a language tag.** This Pixel's default is
+`en-IL-u-mu-celsius` — English, Israel, show temperatures in Celsius. Handed
+over whole it gets `ERROR_LANGUAGE_NOT_SUPPORTED` immediately, so extensions
+are stripped first.
+
+**Neither is a bare language.** `en` fails too, and SODA says why:
+
+```
+W/SodaLPDirGenerator: Returning no LP, as MDD does not support locale: en.
+```
+
+On-device recognition wants a full region tag, and there is no `en-IL` model in
+existence. What this phone actually has is `en-US` — which no amount of
+reasoning from the locale would ever produce. So on API 33+ `Models` asks
+outright, via `checkRecognitionSupport`:
+
+```
+installed = [en-US]
+supported = [… en-CA, en-IN, en-AU, en-GB, en-IE, en-SG …]   ← no en-IL
+pending   = []
+```
+
+An installed model that matches the locale's *language* goes to the top of the
+ladder, ahead of anything derived from the locale itself:
 
 | # | language | offline |
 |---|---|---|
-| 1 | `en-IL` | yes |
-| 2 | `en` | yes |
-| 3 | recognizer's default | yes |
-| 4–6 | the same three | no — network allowed |
+| 1 | `en-US` — because the phone says it has it | yes |
+| 2 | `en-IL` | yes |
+| 3 | `en` | yes |
+| 4 | recognizer's default | yes |
+| 5–8 | the same four | no — network allowed |
 
-It climbs only on *setup* errors — `LANGUAGE_NOT_SUPPORTED`,
+Rung 1 wins, and speech never leaves the phone. Where no model is installed but
+one is supported, `triggerModelDownload` asks for it and the user is told to
+try again shortly; on pre-33 phones none of this exists and the ladder runs as
+before, guessing from the locale.
+
+The first summon in a fresh process spends up to 300ms waiting for that report
+before planning, because the answer changes the entire ladder; later summons
+read a cached copy and pay nothing. The budget exists so a recognizer that
+never calls back cannot cost us the microphone.
+
+The ladder climbs only on *setup* errors — `LANGUAGE_NOT_SUPPORTED`,
 `LANGUAGE_UNAVAILABLE`, `SERVER_DISCONNECTED`, `SERVER`,
-`CANNOT_CHECK_SUPPORT` — never on "you didn't speak". That distinction matters:
-a dead offline recognizer reports `SERVER_DISCONNECTED`, not a language error,
-and treating only language errors as retryable once made the ladder stop one
-rung short of the attempt that actually worked.
+`CANNOT_CHECK_SUPPORT` — never on "you didn't speak", which would make silence
+thrash through every rung instead of saying so. Keying on the category rather
+than specific codes matters more than it looks: the same rung returns different
+codes on different runs, so a fix keyed to "rung 2 returns 12" is a coin flip.
+An earlier version retried only on language errors, hit `SERVER_DISCONNECTED`
+from the dead offline recognizer, and stopped one rung short of the attempt
+that worked.
 
-**On a stock Pixel, rungs 1–3 all fail** and recognition lands on rung 4, which
-means audio goes to Google:
-
-```
-E/SodaSpeechRecognizer: Failed to get language pack of required locale: error 12
-I/SodaSpeechRecognizer: Offline recognizer - stop detection
-```
-
-SODA is the on-device recognizer, and it has no language pack installed. To
-keep speech on the device, install one — Settings → System → Languages &
-input → On-device speech recognition → add your language — after which rung 1
-or 2 wins and nothing leaves the phone. `./dev logcat` shows which rung won on
-every summon.
+`./dev logcat` prints the full ladder and which rung won on every summon.
 
 ## Known gaps
 
@@ -234,4 +259,5 @@ every summon.
   keyguard draws above our sheet, so listening there would mean an open
   microphone behind a screen showing no sign of it. The refusal is a toast,
   since only toasts draw over the keyguard.
-- Speech may leave the phone — see [Language packs](#language-packs).
+- Speech leaves the phone only when no on-device model fits — see
+  [Language packs](#language-packs).

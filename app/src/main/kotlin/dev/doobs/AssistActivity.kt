@@ -85,7 +85,7 @@ class AssistActivity : Activity(), Ears.Listener {
     override fun onDestroy() {
         super.onDestroy()
         main.removeCallbacksAndMessages(null)
-        ears.stop()
+        ears.close()
     }
 
     private fun startListening() {
