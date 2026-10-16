@@ -19,16 +19,34 @@
         android:textColor="@color/on_sheet"
         android:textSize="20sp" />
 
+    <!-- What you said. Stays put; the grammar below it is a separate view so
+         the two never overwrite each other. -->
     <TextView
         android:id="@+id/transcript"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="8dp"
         android:gravity="center"
-        android:minLines="2"
-        android:text="@string/hint_examples"
+        android:minLines="1"
         android:textColor="@color/on_sheet_dim"
         android:textSize="15sp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="16dp"
+        android:background="@color/divider" />
+
+    <TextView
+        android:id="@+id/grammar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:fontFamily="monospace"
+        android:gravity="start"
+        android:lineSpacingExtra="3dp"
+        android:textColor="@color/on_sheet_dim"
+        android:textSize="12sp" />
 
     <ImageButton
         android:id="@+id/mic"

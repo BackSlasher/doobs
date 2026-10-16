@@ -5,4 +5,5 @@
     <color name="sheet">#151A1F</color>
     <color name="on_sheet">#E6EAEF</color>
     <color name="on_sheet_dim">#8A929B</color>
+    <color name="divider">#2A313A</color>
 </resources>

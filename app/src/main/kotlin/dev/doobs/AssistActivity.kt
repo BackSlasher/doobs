@@ -43,6 +43,7 @@ class AssistActivity : Activity(), Ears.Listener {
         status = findViewById(R.id.status)
         transcript = findViewById(R.id.transcript)
         mic = findViewById(R.id.mic)
+        findViewById<TextView>(R.id.grammar).text = grammar()
         ears = Ears(this, this)
 
         mic.setOnClickListener { startListening() }
@@ -70,6 +71,13 @@ class AssistActivity : Activity(), Ears.Listener {
         // Opened by the assist gesture or the launcher: start listening straight away,
         // the way the thing it replaces did.
         startListening()
+    }
+
+    /** The grammar, verbatim, so the sheet and the parser can't drift apart. */
+    private fun grammar(): String {
+        val patterns = resources.getStringArray(R.array.grammar).joinToString("\n")
+        val notes = resources.getStringArray(R.array.grammar_notes).joinToString("\n")
+        return "$patterns\n\n$notes"
     }
 
     private fun injectedTranscript(): String? {
@@ -103,7 +111,7 @@ class AssistActivity : Activity(), Ears.Listener {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_MIC)
             return
         }
-        transcript.text = getString(R.string.hint_examples)
+        transcript.text = ""
         ears.listen()
     }
 
@@ -138,8 +146,9 @@ class AssistActivity : Activity(), Ears.Listener {
     }
 
     override fun onTrouble(message: String) {
+        // Leave the transcript alone: seeing what it thought you said is half
+        // the explanation for why it failed.
         status.text = message
-        transcript.text = getString(R.string.hint_examples)
         dismissLater(TROUBLE_LINGER_MS)
     }
 

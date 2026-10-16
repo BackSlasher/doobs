@@ -8,7 +8,22 @@
 
     <string name="mic_content_description">Speak</string>
 
-    <string name="hint_examples">“set an alarm for 7:30”\n“remind me at 6 to take the bins out”</string>
+    <!-- The grammar itself, not a sampler. Arrays so the lines stay readable
+         here; joined with newlines at runtime. -->
+    <string-array name="grammar">
+        <item>set an alarm for {time}</item>
+        <item>set an alarm for {time} to {label}</item>
+        <item>wake me up at {time}</item>
+        <item>remind me at {time} to {task}</item>
+        <item>remind me to {task} at {time}</item>
+        <item>remind me in {span} to {task}</item>
+    </string-array>
+
+    <string-array name="grammar_notes">
+        <item>{time}  7:30 · half past six · noon · 8 pm</item>
+        <item>{span}  20 minutes · half an hour</item>
+        <item>bare hour = next time it comes round</item>
+    </string-array>
 
     <string name="err_no_mic_permission">doobs needs the microphone to hear you.</string>
     <string name="err_no_recognizer">No speech recognizer on this device.</string>
