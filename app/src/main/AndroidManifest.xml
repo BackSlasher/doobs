@@ -27,6 +27,16 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- Launched by package name, which Android 11+ hides unless asked for:
+             without this, getLaunchIntentForPackage returns null and Translate
+             looks uninstalled even when it is right there. -->
+        <package android:name="com.google.android.apps.translate" />
+        <!-- A browser, for the web fallbacks. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
         <!-- Google Tasks, via Calendar's task composer. -->
         <intent>
             <action android:name="android.intent.action.CREATE_REMINDER" />

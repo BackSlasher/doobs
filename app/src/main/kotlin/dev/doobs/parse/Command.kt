@@ -1,5 +1,6 @@
 package dev.doobs.parse
 
+import dev.doobs.convert.Units
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -37,6 +38,19 @@ sealed interface Command {
 
     /** Navigate back to whatever [ParkHere] remembered. */
     data object FindCar : Command
+
+    /** Just open Google Translate. No arguments — the app is the feature. */
+    data object Translate : Command
+
+    /**
+     * The only command with an answer of its own rather than an app to hand to.
+     * Worked out on the phone; see [dev.doobs.convert.Units].
+     */
+    data class Convert(
+        val amount: Double,
+        val from: Units.Unit,
+        val to: Units.Unit,
+    ) : Command
 }
 
 sealed interface Parsed {

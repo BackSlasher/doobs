@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import android.widget.ImageButton
 import android.widget.TextView
@@ -207,6 +208,13 @@ class AssistActivity : Activity(), Ears.Listener {
                     dismissLater(DONE_LINGER_MS)
                 }
 
+                // An answer rather than a hand-off: nothing took over the
+                // screen, so nothing should snatch it away mid-read either.
+                is Actions.Outcome.Shown -> {
+                    status.text = outcome.message
+                    stayUntilDismissed()
+                }
+
                 is Actions.Outcome.Failed -> {
                     status.text = outcome.message
                     dismissLater(TROUBLE_LINGER_MS)
@@ -218,6 +226,18 @@ class AssistActivity : Activity(), Ears.Listener {
     private fun hasLocationPermission() =
         checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Hold the sheet open. Back and a tap outside already close it — the theme
+     * sees to that — so this adds a tap anywhere on the sheet itself, and stops
+     * the microphone rather than leaving it open behind an answer.
+     */
+    private fun stayUntilDismissed() {
+        dismissing = true
+        ears.stop()
+        main.removeCallbacksAndMessages(null)
+        findViewById<View>(R.id.sheet).setOnClickListener { finish() }
+    }
 
     private fun dismissLater(delayMs: Long) {
         dismissing = true

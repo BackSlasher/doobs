@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.AlarmClock
 import dev.doobs.R
+import dev.doobs.convert.Units
 import dev.doobs.logd
 import dev.doobs.logw
 import dev.doobs.park.Locator
@@ -33,8 +34,15 @@ object Actions {
     /** Waze also takes google.navigation:, and a chooser is a poor answer to a spoken question. */
     private const val MAPS = "com.google.android.apps.maps"
 
+    private const val TRANSLATE = "com.google.android.apps.translate"
+
     sealed interface Outcome {
+        /** Handed off to another app; the sheet can get out of the way. */
         data class Done(val message: String) : Outcome
+
+        /** An answer to read, with no app to go to. The sheet waits to be dismissed. */
+        data class Shown(val message: String) : Outcome
+
         data class Failed(val message: String) : Outcome
     }
 
@@ -50,6 +58,8 @@ object Actions {
 
             Command.ParkHere -> parkHere(context, done)
             Command.FindCar -> done(findCar(context))
+            Command.Translate -> done(translate(context))
+            is Command.Convert -> done(convert(context, command))
         }
     }
 
@@ -130,6 +140,37 @@ object Actions {
         is Moment.At -> now.toLocalDate().atTime(moment.time)
             .let { if (it.isAfter(now)) it else it.plusDays(1) }
     }.withSecond(0).withNano(0)
+
+    /**
+     * No arguments: the app itself is the feature, and its camera and
+     * conversation modes are things doobs could never express in a sentence.
+     */
+    private fun translate(context: Context): Outcome {
+        val message = context.getString(R.string.ok_translate)
+        context.packageManager.getLaunchIntentForPackage(TRANSLATE)
+            ?.let { return launch(context, it, message, R.string.err_no_translate) }
+
+        // Either absent or hidden from us by package-visibility filtering — the
+        // two are indistinguishable from here, so don't claim to know which.
+        logw("$TRANSLATE not visible (installed? check <queries>); falling back to the web")
+        val web = Intent(Intent.ACTION_VIEW, Uri.parse("https://translate.google.com"))
+        return launch(context, web, message, R.string.err_no_translate)
+    }
+
+    /** The one command that answers rather than delegates, so nothing is launched. */
+    private fun convert(context: Context, command: Command.Convert): Outcome {
+        val result = Units.convert(command.amount, command.from, command.to)
+            ?: return Outcome.Failed(context.getString(R.string.err_cannot_convert))
+        return Outcome.Shown(
+            context.getString(
+                R.string.ok_convert,
+                Units.format(command.amount),
+                command.from.symbol,
+                Units.format(result),
+                command.to.symbol,
+            ),
+        )
+    }
 
     private fun handled(context: Context, intent: Intent) =
         context.packageManager.resolveActivity(intent, 0) != null

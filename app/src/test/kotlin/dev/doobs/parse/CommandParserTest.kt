@@ -1,5 +1,6 @@
 package dev.doobs.parse
 
+import dev.doobs.convert.Units
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -193,6 +194,72 @@ class CommandParserTest {
         val command = remind("remind me at 6 to park the car")
         assertEquals("park the car", command.text)
         assertEquals(Moment.At(LocalTime.of(18, 0)), command.moment)
+    }
+
+    @Test
+    fun `opening translate`() {
+        val said = listOf("translate", "open translate", "google translate", "open google translate", "translator")
+        for (text in said) {
+            assertEquals("'$text'", Command.Translate, (parse(text) as? Parsed.Understood)?.command)
+        }
+    }
+
+    // --- conversions -------------------------------------------------------
+
+    private fun convert(text: String): Command.Convert {
+        val parsed = parse(text)
+        assertTrue("'$text' was not understood", parsed is Parsed.Understood)
+        val command = (parsed as Parsed.Understood).command
+        assertTrue("'$text' became $command", command is Command.Convert)
+        return command as Command.Convert
+    }
+
+    private fun result(text: String): String {
+        val c = convert(text)
+        return Units.format(Units.convert(c.amount, c.from, c.to)!!) + " " + c.to.symbol
+    }
+
+    @Test
+    fun `conversion phrasings`() {
+        assertEquals("4.331 in", result("convert 11 cm to inches"))
+        assertEquals("4.331 in", result("convert 11 centimeters to inches"))
+        assertEquals("4.331 in", result("11 cm in inches"))
+        assertEquals("4.331 in", result("what's 11 cm in inches"))
+        assertEquals("4.331 in", result("how many inches in 11 cm"))
+    }
+
+    @Test
+    fun `decimals survive normalisation`() {
+        // Words.normalize strips full stops, which would turn 1.5 into "1 5".
+        assertEquals(1.5, convert("convert 1.5 kg to pounds").amount, 0.0001)
+        assertEquals("3.307 lb", result("convert 1.5 kg to pounds"))
+    }
+
+    @Test
+    fun `spoken numbers convert too`() {
+        assertEquals("25.4 mm", result("convert one inch to millimetres"))
+    }
+
+    @Test
+    fun `temperature is not a ratio`() {
+        assertEquals("32 °F", result("convert 0 celsius to fahrenheit"))
+        assertEquals("100 °C", result("convert 212 fahrenheit to celsius"))
+        assertEquals("273.1 K", result("convert 0 celsius to kelvin"))
+    }
+
+    @Test
+    fun `mismatched units are refused rather than guessed`() {
+        assertTrue(parse("convert 11 cm to kilograms") is Parsed.NotUnderstood)
+        assertTrue(parse("convert 11 bananas to inches") is Parsed.NotUnderstood)
+    }
+
+    @Test
+    fun `conversion grammar does not steal time commands`() {
+        // "<something> to <something>" is also the shape of a labelled alarm and
+        // of a reminder, so the converter only wins when both units resolve.
+        assertEquals(LocalTime.of(19, 50), alarm("set an alarm for ten to eight pm").at)
+        assertEquals("take the bins out", remind("remind me at 6 to take the bins out").text)
+        assertEquals(LocalTime.of(7, 30), alarm("set an alarm for 7.30 am").at)
     }
 
     // --- refusals ----------------------------------------------------------

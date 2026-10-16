@@ -36,7 +36,9 @@ object MomentParser {
 
     private val PAST = Regex("^(?:(\\d{1,2})|quarter|half)\\s+past\\s+(\\d{1,2})\\b")
     private val TILL = Regex("^(?:(\\d{1,2})|quarter|half)\\s+(?:to|till|til|before)\\s+(\\d{1,2})\\b")
-    private val HH_MM = Regex("^(\\d{1,2})\\s*:\\s*(\\d{2})\\b")
+    // A dot counts as a separator too, now that normalize keeps decimal points:
+    // "7.30" is a time here, while "1.5" stays a number for the converter.
+    private val HH_MM = Regex("^(\\d{1,2})\\s*[:.]\\s*(\\d{2})\\b")
     private val HHMM = Regex("^([01]\\d|2[0-3])([0-5]\\d)\\b")
     private val HH_SP_MM = Regex("^(\\d{1,2})\\s+([0-5]\\d)\\b")
     private val HH = Regex("^(\\d{1,2})\\b")

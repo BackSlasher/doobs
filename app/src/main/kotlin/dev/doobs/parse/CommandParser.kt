@@ -1,5 +1,6 @@
 package dev.doobs.parse
 
+import dev.doobs.convert.Units
 import java.time.LocalDateTime
 
 /**
@@ -53,6 +54,30 @@ object CommandParser {
         Regex("^find\\s+(?:my\\s+|the\\s+)?car$"),
     )
 
+    /**
+     * "convert 11 cm to inches", "11 cm in inches", "what's 1.5 kg in pounds".
+     * These are matched before the time grammars but only *accepted* when both
+     * units resolve, so "remind me at 6 to take the bins out" can never be
+     * mistaken for a conversion.
+     */
+    private val CONVERT = listOf(
+        Regex("^convert\\s+(.+?)\\s+(?:to|into|in)\\s+(.+)$"),
+        Regex("^(?:what(?:'s| is)\\s+)?(\\d.*?)\\s+(?:to|into|in)\\s+(.+)$"),
+    )
+
+    /** Reversed: "how many inches in 11 cm". */
+    private val CONVERT_REVERSED = listOf(
+        Regex("^how\\s+many\\s+(.+?)\\s+(?:in|is|are|per)\\s+(.+)$"),
+        Regex("^how\\s+much\\s+is\\s+(.+?)\\s+in\\s+(.+)$"),
+    )
+
+    private val AMOUNT = Regex("^(-?\\d+(?:\\.\\d+)?)\\s*(.+)$")
+
+    private val TRANSLATE = listOf(
+        Regex("^(?:open\\s+|start\\s+|launch\\s+)?(?:google\\s+)?translate$"),
+        Regex("^(?:open\\s+|start\\s+|launch\\s+)?(?:google\\s+)?translator$"),
+    )
+
     /** Words that can introduce a time phrase. "for" is left out: too many false hits in labels. */
     private val TIME_LEAD = Regex("\\b(?:at|in|on|by)\\b")
     private val SEPARATOR = " to "
@@ -68,6 +93,8 @@ object CommandParser {
         // anything the time-bearing grammars below would accept.
         if (PARKED.any { it.matches(text) }) return Parsed.Understood(Command.ParkHere, heard)
         if (FIND_CAR.any { it.matches(text) }) return Parsed.Understood(Command.FindCar, heard)
+        if (TRANSLATE.any { it.matches(text) }) return Parsed.Understood(Command.Translate, heard)
+        conversion(text)?.let { return Parsed.Understood(it, heard) }
 
         for (pattern in REMIND) {
             val tail = pattern.find(text)?.groupValues?.get(1) ?: continue
@@ -78,6 +105,28 @@ object CommandParser {
             alarm(tail, now)?.let { return Parsed.Understood(it, heard) }
         }
         return Parsed.NotUnderstood(heard)
+    }
+
+    private fun conversion(text: String): Command.Convert? {
+        for (pattern in CONVERT) {
+            val match = pattern.find(text) ?: continue
+            build(match.groupValues[1], match.groupValues[2])?.let { return it }
+        }
+        for (pattern in CONVERT_REVERSED) {
+            val match = pattern.find(text) ?: continue
+            build(match.groupValues[2], match.groupValues[1])?.let { return it }
+        }
+        return null
+    }
+
+    /** Returns null unless this really is a conversion, so other grammars still get a turn. */
+    private fun build(amountAndUnit: String, target: String): Command.Convert? {
+        val match = AMOUNT.find(Words.digitize(amountAndUnit.trim())) ?: return null
+        val amount = match.groupValues[1].toDoubleOrNull() ?: return null
+        val from = Units.find(match.groupValues[2]) ?: return null
+        val to = Units.find(target) ?: return null
+        if (from.family != to.family) return null
+        return Command.Convert(amount, from, to)
     }
 
     private fun alarm(tail: String, now: LocalDateTime): Command.SetAlarm? {

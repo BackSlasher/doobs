@@ -22,9 +22,17 @@ internal object Words {
     )
 
     private val WHITESPACE = Regex("\\s+")
-    private val JUNK = Regex("[^a-z0-9:' ]")
+    private val JUNK = Regex("[^a-z0-9:.'/ ]")
 
-    /** Lowercase, de-punctuate, and collapse whitespace. Apostrophes survive, for labels. */
+    /** A full stop that isn't a decimal point: sentence punctuation, so drop it. */
+    private val PROSE_DOT = Regex("(?<!\\d)\\.|\\.(?!\\d)")
+
+    /**
+     * Lowercase, de-punctuate, and collapse whitespace. Apostrophes survive for
+     * labels, and a decimal point survives between digits — "1.5 kg" needs it,
+     * while "set an alarm for 7.30" is handled by letting the time grammar take
+     * a dot as well as a colon. Slashes survive for "km/h".
+     */
     fun normalize(raw: String): String = raw
         .lowercase()
         .replace('’', '\'')
@@ -32,6 +40,7 @@ internal object Words {
         .replace("p.m.", "pm")
         .replace("o'clock", " ")
         .replace(JUNK, " ")
+        .replace(PROSE_DOT, " ")
         .replace("oclock", " ")
         .replace(WHITESPACE, " ")
         .trim()
