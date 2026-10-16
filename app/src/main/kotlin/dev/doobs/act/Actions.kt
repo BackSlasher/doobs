@@ -10,6 +10,7 @@ import dev.doobs.logd
 import dev.doobs.logw
 import dev.doobs.park.Locator
 import dev.doobs.park.Parking
+import dev.doobs.park.Quality
 import dev.doobs.parse.Command
 import dev.doobs.parse.Moment
 import java.time.Duration
@@ -225,14 +226,28 @@ object Actions {
                 done(Outcome.Failed(context.getString(R.string.err_no_location)))
                 return@locate
             }
-            Parking(context).save(location)
-            logd("parked at ${location.latitude},${location.longitude} (±${location.accuracy}m)")
-            val message = if (location.hasAccuracy()) {
-                context.getString(R.string.ok_parked_accuracy, location.accuracy.roundToInt())
-            } else {
-                context.getString(R.string.ok_parked)
+            val accuracy = if (location.hasAccuracy()) location.accuracy else null
+            val metres = accuracy?.roundToInt() ?: -1
+            when (Quality.of(accuracy)) {
+                // Too vague to walk to. Saving it would also overwrite a good
+                // spot with a bad one, so refuse outright.
+                Quality.TOO_ROUGH -> {
+                    logw("fix of ±${metres}m is too rough to save")
+                    done(Outcome.Failed(context.getString(R.string.err_too_rough, metres)))
+                }
+
+                Quality.ACCEPTABLE -> {
+                    Parking(context).save(location)
+                    logd("parked at ${location.latitude},${location.longitude} (±${metres}m, rough)")
+                    done(Outcome.Done(context.getString(R.string.ok_parked_rough, metres)))
+                }
+
+                Quality.EXCELLENT -> {
+                    Parking(context).save(location)
+                    logd("parked at ${location.latitude},${location.longitude} (±${metres}m)")
+                    done(Outcome.Done(context.getString(R.string.ok_parked_accuracy, metres)))
+                }
             }
-            done(Outcome.Done(message))
         }
     }
 

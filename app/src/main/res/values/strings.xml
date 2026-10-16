@@ -46,11 +46,13 @@
 
     <string name="ok_parked">Parking spot saved</string>
     <string name="ok_parked_accuracy">Parking spot saved (±%1$d m)</string>
+    <string name="ok_parked_rough">Saved, but only to ±%1$d m</string>
     <string name="ok_to_car">Walking you back to your car</string>
     <string name="ok_car_on_map">Your car, on the map</string>
     <string name="map_pin_label">Your car</string>
 
     <string name="err_no_location">Couldn\'t get a location fix. Try outdoors.</string>
+    <string name="err_too_rough">Only ±%1$d m — too rough to save. Try again outside.</string>
     <string name="err_no_spot">No parking spot saved yet. Say “I parked here” first.</string>
     <string name="err_no_maps">No maps app to navigate with.</string>
     <string name="ok_translate">Opening Translate</string>

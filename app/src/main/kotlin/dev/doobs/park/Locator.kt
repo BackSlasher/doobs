@@ -77,7 +77,7 @@ class Locator(private val context: Context) {
                     onImproved(location)
                 }
                 // Good enough to walk to: stop burning the GPS.
-                if (location.hasAccuracy() && location.accuracy <= GOOD_ENOUGH_METRES) {
+                if (location.hasAccuracy() && Quality.of(location.accuracy) == Quality.EXCELLENT) {
                     finish("accurate enough")
                 }
             }
@@ -142,8 +142,6 @@ class Locator(private val context: Context) {
     }.getOrNull()
 
     private companion object {
-        /** Close enough that you can see the car from the pin. */
-        const val GOOD_ENOUGH_METRES = 25f
         const val TIMEOUT_MS = 12_000L
         const val STALE_MS = 30_000L
     }
