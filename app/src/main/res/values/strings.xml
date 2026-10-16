@@ -47,9 +47,9 @@
     <string name="ok_parked">Parking spot saved</string>
     <string name="ok_parked_accuracy">Parking spot saved (±%1$d m)</string>
     <string name="ok_parked_rough">Saved, but only to ±%1$d m</string>
-    <string name="ok_to_car">Walking you back to your car</string>
     <string name="ok_car_on_map">Your car, on the map</string>
-    <string name="map_pin_label">Your car</string>
+    <string name="map_pin_label">Your car, %1$s</string>
+    <string name="map_pin_label_rough">Your car, %1$s, ±%2$d m</string>
     <string name="caveat_rough_spot">Spot is only accurate to ±%1$d m</string>
 
     <string name="err_no_location">Couldn\'t get a location fix. Try outdoors.</string>

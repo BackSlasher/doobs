@@ -270,29 +270,37 @@ object Actions {
         // Double.toString is locale-independent, so the decimal point is always
         // a point — a comma here would silently truncate the coordinate.
         val point = "${spot.latitude},${spot.longitude}"
-        val label = context.getString(R.string.map_pin_label)
-
-        // Silence when the pin is good; a word when it isn't. Said as a caveat
-        // rather than in the message, because Maps is about to own the screen
-        // and this is worth knowing while you are looking around.
         val accuracy = spot.accuracyMetres.takeIf { it > 0f }
-        val caveat = if (Quality.of(accuracy) == Quality.EXCELLENT) {
+        val excellent = accuracy != null && Quality.of(accuracy) == Quality.EXCELLENT
+
+        // The label is the only thing that stays on screen while you walk
+        // around looking, so it carries everything worth knowing: what the pin
+        // is, when it was dropped, and how far off it might be. The last part
+        // only when it isn't excellent — on a good fix it is noise, and a
+        // nameless accuracy cannot be quoted at all.
+        val stamp = Times.stamp(context, spot.savedAt)
+        val label = if (excellent || accuracy == null) {
+            context.getString(R.string.map_pin_label, stamp)
+        } else {
+            context.getString(R.string.map_pin_label_rough, stamp, accuracy.roundToInt())
+        }
+
+        // Same rule, said once more as a toast, because the pin's title is only
+        // readable once Maps has finished opening.
+        val caveat = if (excellent) {
             null
         } else {
             context.getString(R.string.caveat_rough_spot, (accuracy ?: 0f).roundToInt())
         }
 
-        // Walking, because you are on foot looking for a car you left somewhere.
-        // Aimed at Maps: Waze and friends also take google.navigation:, and an
-        // unaimed intent stops at a chooser, which is a poor answer to a
-        // question you asked out loud.
-        val navigate = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=$point&mode=w"))
-        val toCar = context.getString(R.string.ok_to_car)
-        Intent(navigate).setPackage(MAPS).takeIf { handled(context, it) }
-            ?.let { return launch(context, it, toCar, R.string.err_no_maps, caveat) }
-        if (handled(context, navigate)) return launch(context, navigate, toCar, R.string.err_no_maps, caveat)
-
-        // Nothing offers navigation: drop a pin instead, which any maps app takes.
+        // A labelled pin, not turn-by-turn. google.navigation: does start
+        // navigation outright, but it takes no label — Maps reverse-geocodes the
+        // coordinates and titles the card with a street address instead. For a
+        // car you parked yourself, seeing where it is beats being walked there,
+        // and "Your car, 17:05" beats "Pinhas Rutenberg 46-56".
+        //
+        // Aimed at Maps: Waze and friends also take geo:, and an unaimed intent
+        // stops at a chooser, which is a poor answer to a question asked aloud.
         val pin = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$point?q=$point(${Uri.encode(label)})"))
         val onMap = context.getString(R.string.ok_car_on_map)
         Intent(pin).setPackage(MAPS).takeIf { handled(context, it) }

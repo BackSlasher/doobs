@@ -4,7 +4,10 @@ import android.content.Context
 import android.text.format.DateFormat
 import dev.doobs.R
 import java.time.Duration
+import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -14,6 +17,18 @@ internal object Times {
     fun format(context: Context, time: LocalTime): String {
         val pattern = if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a"
         return time.format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()))
+    }
+
+    /**
+     * When something was saved, as short as it can be while staying
+     * unambiguous: just the time if it was today, with the date if it wasn't —
+     * because "your car, 09:12" means something very different yesterday.
+     */
+    fun stamp(context: Context, epochMillis: Long): String {
+        val zoned = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault())
+        val time = format(context, zoned.toLocalTime())
+        if (zoned.toLocalDate() == LocalDate.now(ZoneId.systemDefault())) return time
+        return zoned.format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())) + " " + time
     }
 
     fun describe(context: Context, duration: Duration): String {
