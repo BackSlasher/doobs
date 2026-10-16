@@ -150,6 +150,51 @@ class CommandParserTest {
         assertEquals(Moment.At(LocalTime.of(17, 0)), command.moment)
     }
 
+    // --- parking -----------------------------------------------------------
+
+    @Test
+    fun `remembering the spot`() {
+        val said = listOf(
+            "i parked here",
+            "i just parked",
+            "parked here",
+            "i'm parked here",
+            "this is where i parked",
+            "remember where i parked",
+            "save my parking spot",
+            "mark my car",
+        )
+        for (text in said) {
+            assertEquals("'$text'", Command.ParkHere, (parse(text) as? Parsed.Understood)?.command)
+        }
+    }
+
+    @Test
+    fun `finding the car again`() {
+        val said = listOf(
+            "take me to my car",
+            "take me to car",
+            "take me back to my car",
+            "navigate to my car",
+            "where's my car",
+            "where is my car",
+            "where did i park",
+            "where am i parked",
+            "find my car",
+        )
+        for (text in said) {
+            assertEquals("'$text'", Command.FindCar, (parse(text) as? Parsed.Understood)?.command)
+        }
+    }
+
+    @Test
+    fun `parking does not swallow the time grammars`() {
+        // "park" appearing in a reminder is a task, not a parking command.
+        val command = remind("remind me at 6 to park the car")
+        assertEquals("park the car", command.text)
+        assertEquals(Moment.At(LocalTime.of(18, 0)), command.moment)
+    }
+
     // --- refusals ----------------------------------------------------------
 
     @Test

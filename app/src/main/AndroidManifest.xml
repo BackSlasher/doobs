@@ -7,6 +7,15 @@
          bouncing the user through its UI (EXTRA_SKIP_UI). -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
+    <!-- Only for "I parked here", and only asked for when first used.
+         Coarse alone would put the car on the wrong side of the car park. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <uses-feature
+        android:name="android.hardware.location"
+        android:required="false" />
+
     <!-- Needed to see (and hand work to) the clock app on API 30+. -->
     <queries>
         <intent>
@@ -17,6 +26,19 @@
         </intent>
         <intent>
             <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <!-- Google Tasks, via Calendar's task composer. -->
+        <intent>
+            <action android:name="android.intent.action.CREATE_REMINDER" />
+        </intent>
+        <!-- Maps, for walking back to the car. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="google.navigation" />
         </intent>
     </queries>
 

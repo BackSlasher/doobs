@@ -28,6 +28,15 @@ sealed interface Command {
      * "remind me in ten minutes".
      */
     data class Remind(val moment: Moment, val text: String) : Command
+
+    /**
+     * Remember where we are standing. The only command that stores anything —
+     * see [dev.doobs.park.Parking] for why that exception is a small one.
+     */
+    data object ParkHere : Command
+
+    /** Navigate back to whatever [ParkHere] remembered. */
+    data object FindCar : Command
 }
 
 sealed interface Parsed {

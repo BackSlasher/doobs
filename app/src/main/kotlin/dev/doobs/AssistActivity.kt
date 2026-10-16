@@ -15,6 +15,7 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import dev.doobs.act.Actions
+import dev.doobs.parse.Command
 import dev.doobs.parse.CommandParser
 import dev.doobs.parse.Parsed
 import dev.doobs.speech.Ears
@@ -32,6 +33,10 @@ class AssistActivity : Activity(), Ears.Listener {
 
     private val main = Handler(Looper.getMainLooper())
     private var dismissing = false
+
+    /** Set once a transcript is in hand, so a permission dialog can't restart listening. */
+    private var acting = false
+    private var pending: Command? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,7 +62,10 @@ class AssistActivity : Activity(), Ears.Listener {
 
     override fun onStart() {
         super.onStart()
-        if (dismissing) return
+        // `acting` matters because a permission dialog can stop and restart us
+        // mid-command; without it we would start listening again on top of the
+        // command we are still carrying out.
+        if (dismissing || acting) return
 
         // Debug builds accept a typed transcript, which is the only way to exercise
         // the parser and the clock hand-off from a script:
@@ -121,11 +129,20 @@ class AssistActivity : Activity(), Ears.Listener {
         grantResults: IntArray,
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode != REQUEST_MIC) return
-        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
-            startListening()
-        } else {
-            onTrouble(getString(R.string.err_no_mic_permission))
+        val granted = grantResults.any { it == PackageManager.PERMISSION_GRANTED }
+        when (requestCode) {
+            REQUEST_MIC ->
+                if (granted) startListening() else onTrouble(getString(R.string.err_no_mic_permission))
+
+            REQUEST_LOCATION -> {
+                val command = pending
+                pending = null
+                if (granted && command != null) {
+                    carryOut(command)
+                } else {
+                    onTrouble(getString(R.string.err_no_location_permission))
+                }
+            }
         }
     }
 
@@ -162,7 +179,29 @@ class AssistActivity : Activity(), Ears.Listener {
                 dismissLater(TROUBLE_LINGER_MS)
             }
 
-            is Parsed.Understood -> when (val outcome = Actions.perform(this, parsed.command)) {
+            is Parsed.Understood -> carryOut(parsed.command)
+        }
+    }
+
+    private fun carryOut(command: Command) {
+        acting = true
+
+        // Location is asked for the first time someone parks, not at install:
+        // the other commands have no business knowing where you are.
+        if (command == Command.ParkHere && !hasLocationPermission()) {
+            pending = command
+            requestPermissions(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                REQUEST_LOCATION,
+            )
+            return
+        }
+
+        // A fix can take a few seconds, so say something rather than sit blank.
+        if (command == Command.ParkHere) status.setText(R.string.prompt_locating)
+
+        Actions.perform(this, command) { outcome ->
+            when (outcome) {
                 is Actions.Outcome.Done -> {
                     status.text = outcome.message
                     dismissLater(DONE_LINGER_MS)
@@ -176,6 +215,10 @@ class AssistActivity : Activity(), Ears.Listener {
         }
     }
 
+    private fun hasLocationPermission() =
+        checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
     private fun dismissLater(delayMs: Long) {
         dismissing = true
         ears.stop()
@@ -185,6 +228,7 @@ class AssistActivity : Activity(), Ears.Listener {
     private companion object {
         const val EXTRA_TRANSCRIPT = "transcript"
         const val REQUEST_MIC = 1
+        const val REQUEST_LOCATION = 2
         const val DONE_LINGER_MS = 1_400L
         const val TROUBLE_LINGER_MS = 2_400L
     }

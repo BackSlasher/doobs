@@ -17,6 +17,8 @@
         <item>remind me at {time} to {task}</item>
         <item>remind me to {task} at {time}</item>
         <item>remind me in {span} to {task}</item>
+        <item>i parked here</item>
+        <item>take me to my car</item>
     </string-array>
 
     <string-array name="grammar_notes">
@@ -36,9 +38,24 @@
     <string name="err_no_clock_app">No app on this phone can set alarms.</string>
     <string name="err_locked">Unlock your phone first.</string>
 
+    <string name="prompt_locating">Finding you…</string>
+
+    <string name="ok_parked">Parking spot saved</string>
+    <string name="ok_parked_accuracy">Parking spot saved (±%1$d m)</string>
+    <string name="ok_to_car">Walking you back to your car</string>
+    <string name="ok_car_on_map">Your car, on the map</string>
+    <string name="map_pin_label">Your car</string>
+
+    <string name="err_no_location">Couldn\'t get a location fix. Try outdoors.</string>
+    <string name="err_no_spot">No parking spot saved yet. Say “I parked here” first.</string>
+    <string name="err_no_maps">No maps app to navigate with.</string>
+    <string name="err_no_location_permission">doobs needs location to remember where you parked.</string>
+
     <string name="ok_alarm">Alarm for %1$s</string>
     <string name="ok_reminder">%1$s at %2$s</string>
     <string name="ok_timer">%1$s in %2$s</string>
+    <string name="ok_task">Task: %1$s, due %2$s</string>
+    <string name="err_no_tasks">No app on this phone can make tasks.</string>
 
     <string name="unparsed">I can only do alarms and reminders so far.</string>
 

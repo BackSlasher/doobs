@@ -30,6 +30,29 @@ object CommandParser {
         Regex("^wake me(?:\\s+up)?\\s*(.*)$"),
     )
 
+    /**
+     * Parking has no arguments, so these match whole utterances rather than
+     * capturing anything. Kept as a list of plain alternatives instead of one
+     * heroic regex, because every one of them is a phrasing someone actually
+     * says and they should stay individually readable.
+     */
+    private val PARKED = listOf(
+        Regex("^(?:i\\s+)?(?:just\\s+)?parked(?:\\s+(?:here|my\\s+car|the\\s+car))?$"),
+        Regex("^(?:i'?m|im)\\s+parked(?:\\s+here)?$"),
+        Regex("^this\\s+is\\s+where\\s+i\\s+parked$"),
+        Regex("^(?:remember|save|mark|note|store)\\s+(?:where\\s+i\\s+parked|my\\s+(?:car|parking(?:\\s+spot)?)|the\\s+car|parking(?:\\s+spot)?)$"),
+        Regex("^park(?:ing)?\\s+spot$"),
+    )
+
+    private val FIND_CAR = listOf(
+        Regex("^(?:take|get|bring|lead|guide|walk)\\s+me\\s+(?:back\\s+)?to\\s+(?:my\\s+|the\\s+)?car$"),
+        Regex("^(?:navigate|directions?|take\\s+me)\\s+to\\s+(?:my\\s+|the\\s+)?car$"),
+        Regex("^where(?:'?s|\\s+is)\\s+(?:my\\s+|the\\s+)?car$"),
+        Regex("^where\\s+did\\s+i\\s+park(?:\\s+(?:my\\s+car|the\\s+car))?$"),
+        Regex("^where\\s+(?:am\\s+i|i'?m)\\s+parked$"),
+        Regex("^find\\s+(?:my\\s+|the\\s+)?car$"),
+    )
+
     /** Words that can introduce a time phrase. "for" is left out: too many false hits in labels. */
     private val TIME_LEAD = Regex("\\b(?:at|in|on|by)\\b")
     private val SEPARATOR = " to "
@@ -40,6 +63,11 @@ object CommandParser {
         if (heard.isEmpty()) return Parsed.NotUnderstood(heard)
 
         val text = heard.replaceFirst(POLITENESS, "").trim()
+
+        // Argument-free, and matched whole, so they can't be confused with
+        // anything the time-bearing grammars below would accept.
+        if (PARKED.any { it.matches(text) }) return Parsed.Understood(Command.ParkHere, heard)
+        if (FIND_CAR.any { it.matches(text) }) return Parsed.Understood(Command.FindCar, heard)
 
         for (pattern in REMIND) {
             val tail = pattern.find(text)?.groupValues?.get(1) ?: continue
