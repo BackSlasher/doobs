@@ -13,6 +13,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageButton
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import dev.doobs.act.Actions
@@ -30,6 +31,7 @@ class AssistActivity : Activity(), Ears.Listener {
     private lateinit var status: TextView
     private lateinit var transcript: TextView
     private lateinit var mic: ImageButton
+    private lateinit var working: ProgressBar
     private lateinit var ears: Ears
 
     private val main = Handler(Looper.getMainLooper())
@@ -49,6 +51,7 @@ class AssistActivity : Activity(), Ears.Listener {
         status = findViewById(R.id.status)
         transcript = findViewById(R.id.transcript)
         mic = findViewById(R.id.mic)
+        working = findViewById(R.id.working)
         findViewById<TextView>(R.id.grammar).text = grammar()
         ears = Ears(this, this)
 
@@ -199,10 +202,19 @@ class AssistActivity : Activity(), Ears.Listener {
         }
 
         // A fix can take a few seconds, so say something rather than sit blank.
-        if (command == Command.ParkHere) status.setText(R.string.prompt_locating)
+        if (command == Command.ParkHere) {
+            status.setText(R.string.prompt_locating)
+            working.visibility = View.VISIBLE
+        }
 
         Actions.perform(this, command) { outcome ->
+            // Working can arrive repeatedly; the rest end it, so the bar goes
+            // away on whatever comes last.
+            working.visibility = if (outcome is Actions.Outcome.Working) View.VISIBLE else View.GONE
+
             when (outcome) {
+                is Actions.Outcome.Working -> status.text = outcome.message
+
                 is Actions.Outcome.Done -> {
                     status.text = outcome.message
                     dismissLater(DONE_LINGER_MS)

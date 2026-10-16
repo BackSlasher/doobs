@@ -39,6 +39,12 @@ sealed interface Command {
     /** Navigate back to whatever [ParkHere] remembered. */
     data object FindCar : Command
 
+    /**
+     * An alarm with no time said. Opens the clock app's own alarm editor rather
+     * than guessing an hour — the one case where showing UI is the right answer.
+     */
+    data object NewAlarm : Command
+
     /** Just open Google Translate. No arguments — the app is the feature. */
     data object Translate : Command
 

@@ -20,6 +20,18 @@
         android:textColor="@color/on_sheet"
         android:textSize="20sp" />
 
+    <!-- Shown only while something is actually in flight, so its presence
+         means "still going" rather than being permanent furniture. -->
+    <ProgressBar
+        android:id="@+id/working"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_marginTop="14dp"
+        android:indeterminate="true"
+        android:indeterminateTint="@color/accent"
+        android:visibility="gone" />
+
     <!-- What you said. Stays put; the grammar below it is a separate view so
          the two never overwrite each other. -->
     <TextView

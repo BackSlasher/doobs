@@ -13,6 +13,7 @@
     <string-array name="grammar">
         <item>set an alarm for {time}</item>
         <item>set an alarm for {time} to {label}</item>
+        <item>set an alarm            (opens the clock)</item>
         <item>wake me up at {time}</item>
         <item>remind me at {time} to {task}</item>
         <item>remind me to {task} at {time}</item>
@@ -41,6 +42,7 @@
     <string name="err_locked">Unlock your phone first.</string>
 
     <string name="prompt_locating">Finding you…</string>
+    <string name="prompt_locating_within">Best accuracy: %1$d m</string>
 
     <string name="ok_parked">Parking spot saved</string>
     <string name="ok_parked_accuracy">Parking spot saved (±%1$d m)</string>
@@ -58,6 +60,7 @@
     <string name="err_no_location_permission">doobs needs location to remember where you parked.</string>
 
     <string name="ok_alarm">Alarm for %1$s</string>
+    <string name="ok_new_alarm">Over to the clock</string>
     <string name="ok_reminder">%1$s at %2$s</string>
     <string name="ok_timer">%1$s in %2$s</string>
     <string name="ok_task">Task: %1$s, due %2$s</string>

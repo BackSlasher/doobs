@@ -33,8 +33,11 @@ class Locator(private val context: Context) {
     private var best: Location? = null
     private var answered = false
 
-    /** Calls back on the main thread, exactly once, with the best fix found or null. */
-    fun locate(onResult: (Location?) -> Unit) {
+    /**
+     * Calls back on the main thread: [onImproved] each time the best fix gets
+     * better, so the caller can show progress, then [onResult] exactly once.
+     */
+    fun locate(onImproved: (Location) -> Unit = {}, onResult: (Location?) -> Unit) {
         // Checked here as well as by the caller: this is the class that would
         // throw, and lint only credits a check it can see in the same method.
         val permitted =
@@ -69,7 +72,10 @@ class Locator(private val context: Context) {
 
         val listener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
-                if (isBetter(location, best)) best = location
+                if (isBetter(location, best)) {
+                    best = location
+                    onImproved(location)
+                }
                 // Good enough to walk to: stop burning the GPS.
                 if (location.hasAccuracy() && location.accuracy <= GOOD_ENOUGH_METRES) {
                     finish("accurate enough")
@@ -85,6 +91,7 @@ class Locator(private val context: Context) {
 
         // Seed with whatever is already known, so a timeout still answers.
         best = lastKnown(manager)
+        best?.let { onImproved(it) }
 
         logd("locating via ${providers.joinToString()} (seed ±${best?.accuracy ?: -1}m)")
         providers.forEach { provider ->

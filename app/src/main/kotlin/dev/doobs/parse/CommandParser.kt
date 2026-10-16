@@ -73,6 +73,16 @@ object CommandParser {
 
     private val AMOUNT = Regex("^(-?\\d+(?:\\.\\d+)?)\\s*(.+)$")
 
+    /**
+     * "set an alarm" with nothing after it. Checked only once the alarm grammar
+     * below has failed to find a time, so it never shadows a real one.
+     */
+    private val BARE_ALARM = listOf(
+        Regex("^(?:set|create|make|add|new|start)?\\s*(?:an|a|the)?\\s*alarms?$"),
+        Regex("^(?:open|show|see)\\s+(?:my\\s+)?alarms?$"),
+        Regex("^(?:set|create|make|add|new)\\s+(?:an|a)?\\s*alarms?\\s+(?:for\\s+)?(?:later|sometime)$"),
+    )
+
     private val TRANSLATE = listOf(
         Regex("^(?:open\\s+|start\\s+|launch\\s+)?(?:google\\s+)?translate$"),
         Regex("^(?:open\\s+|start\\s+|launch\\s+)?(?:google\\s+)?translator$"),
@@ -104,6 +114,10 @@ object CommandParser {
             val tail = pattern.find(text)?.groupValues?.get(1) ?: continue
             alarm(tail, now)?.let { return Parsed.Understood(it, heard) }
         }
+
+        // Last, so that anything carrying a real time has already been claimed.
+        if (BARE_ALARM.any { it.matches(text) }) return Parsed.Understood(Command.NewAlarm, heard)
+
         return Parsed.NotUnderstood(heard)
     }
 

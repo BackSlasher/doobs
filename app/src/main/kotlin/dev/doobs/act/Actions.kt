@@ -37,6 +37,13 @@ object Actions {
     private const val TRANSLATE = "com.google.android.apps.translate"
 
     sealed interface Outcome {
+        /**
+         * Not finished. May arrive several times before a terminal outcome, each
+         * with a better answer than the last — a spinner alone says "something is
+         * happening", this says what.
+         */
+        data class Working(val message: String) : Outcome
+
         /** Handed off to another app; the sheet can get out of the way. */
         data class Done(val message: String) : Outcome
 
@@ -58,6 +65,7 @@ object Actions {
 
             Command.ParkHere -> parkHere(context, done)
             Command.FindCar -> done(findCar(context))
+            Command.NewAlarm -> done(newAlarm(context))
             Command.Translate -> done(translate(context))
             is Command.Convert -> done(convert(context, command))
         }
@@ -105,6 +113,17 @@ object Actions {
      * alarms, so it always costs one Save tap — which doubles as a last look
      * at what doobs thought you said.
      */
+    /**
+     * No time was said, so don't invent one. ACTION_SET_ALARM with no hour and
+     * no EXTRA_SKIP_UI is the documented way to ask the clock app to show its
+     * own editor — the one place where handing over a dialog is the point
+     * rather than a failure.
+     */
+    private fun newAlarm(context: Context): Outcome {
+        val intent = Intent(AlarmClock.ACTION_SET_ALARM)
+        return launch(context, intent, context.getString(R.string.ok_new_alarm), R.string.err_no_clock_app)
+    }
+
     private fun remind(context: Context, command: Command.Remind): Outcome {
         val due = dueAt(command.moment, LocalDateTime.now())
         val task = Intent(Intent.ACTION_CREATE_REMINDER)
@@ -186,7 +205,21 @@ object Actions {
     }
 
     private fun parkHere(context: Context, done: (Outcome) -> Unit) {
-        Locator(context).locate { location ->
+        Locator(context).locate(
+            onImproved = { location ->
+                // Narrowing from ±100m to ±11m takes a second or two, and showing
+                // the number makes that wait legible instead of just long.
+                done(
+                    Outcome.Working(
+                        if (location.hasAccuracy()) {
+                            context.getString(R.string.prompt_locating_within, location.accuracy.roundToInt())
+                        } else {
+                            context.getString(R.string.prompt_locating)
+                        },
+                    ),
+                )
+            },
+        ) { location ->
             if (location == null) {
                 logw("no location fix for a parking spot")
                 done(Outcome.Failed(context.getString(R.string.err_no_location)))

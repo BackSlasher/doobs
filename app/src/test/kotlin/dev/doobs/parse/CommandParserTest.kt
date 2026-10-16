@@ -197,6 +197,22 @@ class CommandParserTest {
     }
 
     @Test
+    fun `an alarm with no time opens the clock`() {
+        val said = listOf("set an alarm", "set alarm", "new alarm", "add an alarm", "alarm", "show my alarms")
+        for (text in said) {
+            assertEquals("'$text'", Command.NewAlarm, (parse(text) as? Parsed.Understood)?.command)
+        }
+    }
+
+    @Test
+    fun `a bare alarm never shadows one with a time`() {
+        // BARE_ALARM is tried last precisely so these still win.
+        assertEquals(LocalTime.of(19, 30), alarm("set an alarm for 7:30 pm").at)
+        assertEquals(LocalTime.of(6, 0), alarm("set an alarm for 6 am").at)
+        assertEquals("go running", alarm("set an alarm for 6 am to go running").label)
+    }
+
+    @Test
     fun `opening translate`() {
         val said = listOf("translate", "open translate", "google translate", "open google translate", "translator")
         for (text in said) {
@@ -271,7 +287,6 @@ class CommandParserTest {
             "what's the weather",
             "play some music",
             "remind me to call the dentist", // no time given
-            "set an alarm",
             "turn on the lights",
         )
         for (text in rejected) {
