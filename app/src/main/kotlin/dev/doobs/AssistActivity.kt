@@ -217,6 +217,9 @@ class AssistActivity : Activity(), Ears.Listener {
 
                 is Actions.Outcome.Done -> {
                     status.text = outcome.message
+                    // A toast, because whatever we handed to is about to cover
+                    // the sheet and this needs to outlive it.
+                    outcome.caveat?.let { Toast.makeText(this, it, Toast.LENGTH_LONG).show() }
                     dismissLater(DONE_LINGER_MS)
                 }
 

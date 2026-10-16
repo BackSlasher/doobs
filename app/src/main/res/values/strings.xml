@@ -50,6 +50,7 @@
     <string name="ok_to_car">Walking you back to your car</string>
     <string name="ok_car_on_map">Your car, on the map</string>
     <string name="map_pin_label">Your car</string>
+    <string name="caveat_rough_spot">Spot is only accurate to ±%1$d m</string>
 
     <string name="err_no_location">Couldn\'t get a location fix. Try outdoors.</string>
     <string name="err_too_rough">Only ±%1$d m — too rough to save. Try again outside.</string>

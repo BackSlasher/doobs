@@ -45,8 +45,14 @@ object Actions {
          */
         data class Working(val message: String) : Outcome
 
-        /** Handed off to another app; the sheet can get out of the way. */
-        data class Done(val message: String) : Outcome
+        /**
+         * Handed off to another app; the sheet can get out of the way.
+         *
+         * [caveat] is something worth knowing *after* the hand-off, when the
+         * other app already owns the screen — so the sheet is the wrong place
+         * for it and the caller shows it as a toast instead.
+         */
+        data class Done(val message: String, val caveat: String? = null) : Outcome
 
         /** An answer to read, with no app to go to. The sheet waits to be dismissed. */
         data class Shown(val message: String) : Outcome
@@ -72,7 +78,13 @@ object Actions {
         }
     }
 
-    private fun launch(context: Context, intent: Intent, message: String, whenMissing: Int): Outcome {
+    private fun launch(
+        context: Context,
+        intent: Intent,
+        message: String,
+        whenMissing: Int,
+        caveat: String? = null,
+    ): Outcome {
         val handler = context.packageManager.resolveActivity(intent, 0)
         if (handler == null) {
             logw("nothing handles ${intent.action} ${intent.data ?: ""}")
@@ -81,7 +93,7 @@ object Actions {
         return try {
             context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             logd("${intent.action} handed to ${handler.activityInfo?.packageName}")
-            Outcome.Done(message)
+            Outcome.Done(message, caveat)
         } catch (e: Exception) {
             logw("could not start ${intent.action}", e)
             Outcome.Failed(context.getString(whenMissing))
@@ -260,6 +272,16 @@ object Actions {
         val point = "${spot.latitude},${spot.longitude}"
         val label = context.getString(R.string.map_pin_label)
 
+        // Silence when the pin is good; a word when it isn't. Said as a caveat
+        // rather than in the message, because Maps is about to own the screen
+        // and this is worth knowing while you are looking around.
+        val accuracy = spot.accuracyMetres.takeIf { it > 0f }
+        val caveat = if (Quality.of(accuracy) == Quality.EXCELLENT) {
+            null
+        } else {
+            context.getString(R.string.caveat_rough_spot, (accuracy ?: 0f).roundToInt())
+        }
+
         // Walking, because you are on foot looking for a car you left somewhere.
         // Aimed at Maps: Waze and friends also take google.navigation:, and an
         // unaimed intent stops at a chooser, which is a poor answer to a
@@ -267,14 +289,14 @@ object Actions {
         val navigate = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=$point&mode=w"))
         val toCar = context.getString(R.string.ok_to_car)
         Intent(navigate).setPackage(MAPS).takeIf { handled(context, it) }
-            ?.let { return launch(context, it, toCar, R.string.err_no_maps) }
-        if (handled(context, navigate)) return launch(context, navigate, toCar, R.string.err_no_maps)
+            ?.let { return launch(context, it, toCar, R.string.err_no_maps, caveat) }
+        if (handled(context, navigate)) return launch(context, navigate, toCar, R.string.err_no_maps, caveat)
 
         // Nothing offers navigation: drop a pin instead, which any maps app takes.
         val pin = Intent(Intent.ACTION_VIEW, Uri.parse("geo:$point?q=$point(${Uri.encode(label)})"))
         val onMap = context.getString(R.string.ok_car_on_map)
         Intent(pin).setPackage(MAPS).takeIf { handled(context, it) }
-            ?.let { return launch(context, it, onMap, R.string.err_no_maps) }
-        return launch(context, pin, onMap, R.string.err_no_maps)
+            ?.let { return launch(context, it, onMap, R.string.err_no_maps, caveat) }
+        return launch(context, pin, onMap, R.string.err_no_maps, caveat)
     }
 }
