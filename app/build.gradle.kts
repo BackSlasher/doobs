@@ -57,6 +57,16 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Signed with the release key when one is available, so a debug
+            // build can replace a release one and vice versa without an
+            // uninstall — swapping then keeps the saved parking spot instead of
+            // taking it. Safe because the key is only ever ours; the thing that
+            // makes a debug build dangerous is android:debuggable, not its
+            // signature. Without a keystore this falls back to AGP's debug key.
+            signingConfigs.findByName("release")?.let { signingConfig = it }
+        }
+
         release {
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true

@@ -12,7 +12,8 @@
 #   ./dev pair <ip:port> <code>  pair with a phone (Wireless debugging -> Pair with code)
 #   ./dev connect <ip:port>      remember + connect to a phone (Wireless debugging)
 #   ./dev usb                    forget that address, go back to USB
-#   ./dev install                build, then install onto the phone
+#   ./dev install                build + install the debug APK (has the test hook)
+#   ./dev install-release        build + install the signed release APK
 #   ./dev run                    install, then fire the assist intent
 #   ./dev logcat                 tail doobs' logs
 #   ./dev adb <args...>          raw adb
@@ -145,14 +146,22 @@ case "$cmd" in
 
   devices) ensure_image; adb_in devices -l ;;
 
+  install-release)
+           ensure_image
+           [[ -f $SECRETS/keystore.properties ]] || {
+             echo "no signing material in $SECRETS; see README: Releases" >&2; exit 1; }
+           in_container gradle --console=plain assembleRelease
+           adb_in "wait-for-device install -r -d $RELEASE_APK"
+           echo "==> release installed (no test hook)" ;;
+
   install) ensure_image
            in_container gradle --console=plain assembleDebug
-           adb_in "wait-for-device install -r -t $APK"
+           adb_in "wait-for-device install -r -d -t $APK"
            echo "==> installed. Set it as the assistant: Settings -> Apps -> Default apps -> Digital assistant app" ;;
 
   run)     ensure_image
            in_container gradle --console=plain assembleDebug
-           adb_in "wait-for-device install -r -t $APK"
+           adb_in "wait-for-device install -r -d -t $APK"
            adb_in "shell am start -a android.intent.action.ASSIST" ;;
 
   logcat)  ensure_image; adb_in "wait-for-device logcat -v brief -s doobs:V" ;;
