@@ -209,23 +209,31 @@ monotonic and identical here and in CI without anything to coordinate.
 
 ### Signing
 
-The keystore lives **outside the repo**, at `~/.config/doobs`:
+The keystore lives in `.secrets/`, beside the project and excluded by
+`.gitignore`:
 
 ```
-doobs-release.jks        4096-bit RSA, 30-year validity, doobs only
-keystore.properties      its passwords, mode 600
+.secrets/doobs-release.jks      4096-bit RSA, 30-year validity, doobs only
+.secrets/keystore.properties    its passwords, mode 600
 ```
 
-`./dev` mounts that directory read-only at `/secrets`; CI passes the same
+It is in the repo directory so it travels with the checkout and needs no extra
+container mount — the repo is already mounted — and it is dot-prefixed so shell
+globs like `git add *` skip it. CI has no such directory and passes the same
 values as `DOOBS_STORE_FILE`, `DOOBS_STORE_PASSWORD`, `DOOBS_KEY_ALIAS` and
 `DOOBS_KEY_PASSWORD`. With neither present a release build comes out
 **unsigned**, deliberately, rather than falling back to the debug key — a
 debug-signed "release" cannot upgrade a real one, and discovering that later
 costs an uninstall.
 
-**Back the keystore up.** Lose it and no future build can ever upgrade an
-installed doobs; the only route is uninstall and reinstall, taking the saved
-parking spot and the assistant-role selection with it.
+Two warnings, both with the same consequence:
+
+- **Back it up.** Lose the keystore and no future build can ever upgrade an
+  installed doobs; the only route is uninstall and reinstall, taking the saved
+  parking spot and the assistant-role selection with it.
+- **Never commit it.** This repo is public, so a leaked key means rotating it,
+  which costs exactly the same uninstall. `git check-ignore .secrets/*` should
+  always name `.gitignore`.
 
 Debug and release are signed differently, so swapping between them on one
 phone means uninstalling first. If that becomes tiresome, give the debug build

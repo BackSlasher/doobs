@@ -6,15 +6,19 @@ plugins {
 }
 
 /**
- * Signing material never lives in the repo. `./dev` mounts it read-only at
- * /secrets; CI supplies the same values as environment variables. With neither
- * present, a release build comes out unsigned rather than quietly falling back
- * to the debug key — a debug-signed "release" cannot upgrade a real one, and
- * finding that out later costs an uninstall.
+ * Signing material lives in .secrets/, which .gitignore excludes — it sits
+ * beside the project but is never committed. CI has no such directory and
+ * supplies the same values as environment variables instead.
+ *
+ * With neither present a release build comes out unsigned rather than quietly
+ * falling back to the debug key: a debug-signed "release" cannot upgrade a real
+ * one, and finding that out later costs an uninstall.
  */
+val signingDir: File = System.getenv("DOOBS_KEYSTORE_DIR")?.let(::File)
+    ?: rootProject.file(".secrets")
+
 val signingProperties = Properties().apply {
-    val dir = System.getenv("DOOBS_KEYSTORE_DIR") ?: "/secrets"
-    File(dir, "keystore.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
+    File(signingDir, "keystore.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
 }
 
 fun signingValue(environment: String, property: String): String? =
@@ -45,10 +49,14 @@ android {
     }
 
     signingConfigs {
-        val storePath = signingValue("DOOBS_STORE_FILE", "storeFile")
-        if (storePath != null && File(storePath).isFile) {
+        // A bare filename is resolved against [signingDir], so the same
+        // properties file works wherever the project is checked out; CI passes
+        // an absolute path and is left alone.
+        val keystore = signingValue("DOOBS_STORE_FILE", "storeFile")
+            ?.let { File(it).takeIf(File::isAbsolute) ?: File(signingDir, it) }
+        if (keystore != null && keystore.isFile) {
             create("release") {
-                storeFile = File(storePath)
+                storeFile = keystore
                 storePassword = signingValue("DOOBS_STORE_PASSWORD", "storePassword")
                 keyAlias = signingValue("DOOBS_KEY_ALIAS", "keyAlias")
                 keyPassword = signingValue("DOOBS_KEY_PASSWORD", "keyPassword")

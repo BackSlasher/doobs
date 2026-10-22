@@ -6,3 +6,9 @@ local.properties
 *.iml
 .idea/
 .kotlin/
+
+# Signing key and its passwords. Ignored BEFORE the directory is created, so
+# jj never snapshots it. Dot-prefixed so shell globs like `git add *` skip it.
+# Losing this means no future build can upgrade an installed doobs; leaking it
+# into this public repo means rotating it, with the same consequence.
+.secrets/
