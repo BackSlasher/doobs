@@ -5,6 +5,7 @@
 #
 #   ./dev image                  build/refresh the toolchain image
 #   ./dev build                  assemble the debug APK
+#   ./dev release                assemble the signed release APK
 #   ./dev test                   run JVM unit tests (parser)
 #   ./dev check                  test + lint
 #   ./dev devices                list phones adb can see
@@ -25,6 +26,10 @@ IMAGE=${DOOBS_IMAGE:-doobs-build}
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 DEVICE_FILE="$ROOT/.dev-device"
 APK=app/build/outputs/apk/debug/app-debug.apk
+RELEASE_APK=app/build/outputs/apk/release/app-release.apk
+# Keystore and its passwords, deliberately outside the repo so they cannot be
+# committed by accident. Override with DOOBS_SECRETS.
+SECRETS=${DOOBS_SECRETS:-$HOME/.config/doobs}
 
 have_image() { podman image exists "$IMAGE"; }
 
@@ -45,9 +50,12 @@ build_image() {
 # --userns=keep-id so build outputs land owned by the host user.
 # :U on the volumes so podman chowns them to that uid.
 in_container() {
-  local tty=()
+  local tty=() secrets=()
   [[ -t 0 && -t 1 ]] && tty=(-it)
-  podman run --rm "${tty[@]}" \
+  # Signing material, read-only and never inside the repo. Absent, release
+  # builds simply come out unsigned.
+  [[ -d $SECRETS ]] && secrets=(-v "$SECRETS:/secrets:ro,Z")
+  podman run --rm "${tty[@]}" "${secrets[@]}" \
     --userns=keep-id \
     --network=host \
     -e ANDROID_ADB_SERVER_PORT=5038 \
@@ -108,6 +116,14 @@ case "$cmd" in
 
   build)   ensure_image; in_container gradle --console=plain assembleDebug
            echo "==> $APK" ;;
+
+  release) ensure_image
+           [[ -f $SECRETS/keystore.properties ]] || {
+             echo "no signing material in $SECRETS; the APK would be unsigned." >&2
+             echo "see README: Releases" >&2; exit 1; }
+           in_container gradle --console=plain assembleRelease
+           in_container bash -lc "\$ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs $RELEASE_APK 2>/dev/null | head -2"
+           echo "==> $RELEASE_APK" ;;
 
   test)    ensure_image; in_container gradle --console=plain test ;;
 

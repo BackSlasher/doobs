@@ -164,6 +164,45 @@ lets the container reach the phone.
 The container's adb runs its own server on port 5038 so it neither piggybacks
 on nor fights a host adb server on the usual 5037.
 
+## Releases
+
+```sh
+./dev release    # signed, minified APK at app/build/outputs/apk/release/
+```
+
+Debug builds are 865 KB and carry `android:debuggable`; release builds are
+72 KB and don't. That flag matters beyond size: the transcript injection hook
+in `AssistActivity` is gated on `FLAG_DEBUGGABLE`, so on a debug build anyone
+with adb can make doobs set alarms or read the parking spot. **Don't leave a
+debug build on a phone you actually use.**
+
+`versionCode` is the commit count (`git rev-list --count HEAD`), so it is
+monotonic and identical here and in CI without anything to coordinate.
+
+### Signing
+
+The keystore lives **outside the repo**, at `~/.config/doobs`:
+
+```
+doobs-release.jks        4096-bit RSA, 30-year validity, doobs only
+keystore.properties      its passwords, mode 600
+```
+
+`./dev` mounts that directory read-only at `/secrets`; CI passes the same
+values as `DOOBS_STORE_FILE`, `DOOBS_STORE_PASSWORD`, `DOOBS_KEY_ALIAS` and
+`DOOBS_KEY_PASSWORD`. With neither present a release build comes out
+**unsigned**, deliberately, rather than falling back to the debug key — a
+debug-signed "release" cannot upgrade a real one, and discovering that later
+costs an uninstall.
+
+**Back the keystore up.** Lose it and no future build can ever upgrade an
+installed doobs; the only route is uninstall and reinstall, taking the saved
+parking spot and the assistant-role selection with it.
+
+Debug and release are signed differently, so swapping between them on one
+phone means uninstalling first. If that becomes tiresome, give the debug build
+an `applicationIdSuffix` so both can sit side by side.
+
 ## Making it the assistant
 
 1. `./dev install`
