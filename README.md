@@ -164,6 +164,34 @@ lets the container reach the phone.
 The container's adb runs its own server on port 5038 so it neither piggybacks
 on nor fights a host adb server on the usual 5037.
 
+## Installing on a phone
+
+Tag a commit and CI builds, signs and publishes the APK:
+
+```sh
+jj bookmark set main -r @- && jj git push --bookmark main
+git tag v0.1.14 "$(jj log -r @- --no-graph -T 'commit_id')" && git push origin v0.1.14
+```
+
+The APK then appears at
+[releases](https://github.com/BackSlasher/doobs/releases) as a plain HTTPS
+file — open it in the phone's browser and it installs in one tap, no cable
+and no account. [Obtainium](https://github.com/ImranR98/Obtainium) watches
+the same releases if you would rather be told when one lands than remember
+to look.
+
+Two things to expect, neither of them a fault:
+
+- The browser needs "install unknown apps" permission, once.
+- Play Protect asks whether to **send the app for a security check**, and
+  may note it hasn't been scanned. Declining is fine; nothing breaks. It
+  asks because the signing certificate isn't one Google knows, which is
+  true of every self-signed app.
+
+Because CI signs with the same key as `./dev release`, a release installs
+over a locally built one as an ordinary upgrade — keeping app data and the
+assistant-role selection.
+
 ## Releases
 
 ```sh
