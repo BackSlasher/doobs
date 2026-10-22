@@ -245,6 +245,26 @@ class CommandParserTest {
     }
 
     @Test
+    fun `in is both a unit and a separator`() {
+        // Dictation writes inches as "in", which is also one of the words that
+        // separates the two halves. Splitting on the first one gives amount "1"
+        // and target "to cm"; the split on "to" is the right one.
+        assertEquals("2.54 cm", result("convert 1 in to cm"))
+        assertEquals("2.54 cm", result("1 in to cm"))
+        assertEquals("30.48 cm", result("convert 12 in to cm"))
+        // And the separator must still not be found inside a longer word.
+        assertEquals("2.54 cm", result("convert 1 inch to cm"))
+        assertEquals("4.331 in", result("convert 11 cm to in"))
+    }
+
+    @Test
+    fun `an unspoken one`() {
+        // "convert an inch to cm" carries no digit at all.
+        assertEquals("2.54 cm", result("convert an inch to cm"))
+        assertEquals("2.54 cm", result("convert a inch to cm"))
+    }
+
+    @Test
     fun `decimals survive normalisation`() {
         // Words.normalize strips full stops, which would turn 1.5 into "1 5".
         assertEquals(1.5, convert("convert 1.5 kg to pounds").amount, 0.0001)

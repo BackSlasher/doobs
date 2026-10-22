@@ -60,10 +60,18 @@ object CommandParser {
      * units resolve, so "remind me at 6 to take the bins out" can never be
      * mistaken for a conversion.
      */
-    private val CONVERT = listOf(
-        Regex("^convert\\s+(.+?)\\s+(?:to|into|in)\\s+(.+)$"),
-        Regex("^(?:what(?:'s| is)\\s+)?(\\d.*?)\\s+(?:to|into|in)\\s+(.+)$"),
-    )
+    private val CONVERT_LEAD = Regex("^(?:convert|what(?:'s| is)|how\\s+much\\s+is)\\s+")
+
+    /**
+     * The words that can separate the two halves. Matched on word boundaries
+     * rather than surrounding spaces, so that consecutive candidates can both
+     * be found — "1 in to cm" has to offer the "to" after the "in" has been
+     * tried and rejected.
+     */
+    private val CONVERT_SEPARATOR = Regex("\\b(?:to|into|in)\\b")
+
+    /** Dictation says "an inch" as often as "1 inch", and neither carries a digit. */
+    private val AN = Regex("^an?\\s+")
 
     /** Reversed: "how many inches in 11 cm". */
     private val CONVERT_REVERSED = listOf(
@@ -122,20 +130,32 @@ object CommandParser {
     }
 
     private fun conversion(text: String): Command.Convert? {
-        for (pattern in CONVERT) {
-            val match = pattern.find(text) ?: continue
-            build(match.groupValues[1], match.groupValues[2])?.let { return it }
-        }
+        // Reversed first, since "how many inches in 11 cm" names the target
+        // before the amount and its shape is unmistakable.
         for (pattern in CONVERT_REVERSED) {
             val match = pattern.find(text) ?: continue
             build(match.groupValues[2], match.groupValues[1])?.let { return it }
+        }
+
+        val body = text.replaceFirst(CONVERT_LEAD, "").trim()
+
+        // Every split is tried rather than the first, because "in" is both a
+        // separator and the abbreviation for inches: "1 in to cm" splits
+        // wrongly on the "in" and correctly on the "to" after it. Only a split
+        // whose halves both name a unit of the same kind is accepted, which is
+        // also what keeps "ten to eight pm" a time.
+        for (match in CONVERT_SEPARATOR.findAll(body)) {
+            val left = body.take(match.range.first)
+            val right = body.substring(match.range.last + 1)
+            build(left, right)?.let { return it }
         }
         return null
     }
 
     /** Returns null unless this really is a conversion, so other grammars still get a turn. */
     private fun build(amountAndUnit: String, target: String): Command.Convert? {
-        val match = AMOUNT.find(Words.digitize(amountAndUnit.trim())) ?: return null
+        val spoken = Words.digitize(amountAndUnit.trim()).replaceFirst(AN, "1 ")
+        val match = AMOUNT.find(spoken) ?: return null
         val amount = match.groupValues[1].toDoubleOrNull() ?: return null
         val from = Units.find(match.groupValues[2]) ?: return null
         val to = Units.find(target) ?: return null
