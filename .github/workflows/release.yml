@@ -63,13 +63,18 @@ jobs:
           apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort | tail -1)
           "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk
 
-      - name: Name it after its version
+      # The commit count is the single source of truth for the version, so the
+      # asset is named from it and the tag is checked against it. Naming the
+      # asset from the tag instead once published doobs-0.1.15.apk containing
+      # 0.1.16, because the tag had been picked by hand from a stale count.
+      - name: Name it after its version, and check the tag agrees
         id: name
         run: |
-          if [ "$GITHUB_REF_TYPE" = tag ]; then
-            version="${GITHUB_REF_NAME#v}"
-          else
-            version="$(git rev-list --count HEAD)"
+          version="0.1.$(git rev-list --count HEAD)"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME disagrees with the built version v$version"
+            echo "::error::tag the commit with ./dev tag rather than by hand"
+            exit 1
           fi
           cp app/build/outputs/apk/release/app-release.apk "doobs-$version.apk"
           echo "apk=doobs-$version.apk" >> "$GITHUB_OUTPUT"

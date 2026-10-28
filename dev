@@ -6,6 +6,7 @@
 #   ./dev image                  build/refresh the toolchain image
 #   ./dev build                  assemble the debug APK
 #   ./dev release                assemble the signed release APK
+#   ./dev tag                    tag HEAD for release and push it
 #   ./dev test                   run JVM unit tests (parser)
 #   ./dev check                  test + lint
 #   ./dev devices                list phones adb can see
@@ -137,6 +138,13 @@ case "$cmd" in
            [[ $# -eq 1 ]] || { echo "usage: ./dev connect <ip:debug-port>" >&2; exit 1; }
            printf '%s' "$1" > "$DEVICE_FILE"
            in_container adb connect "$1" ;;
+
+  tag)     # Computed, never chosen: versionName is 0.1.<commit count>, and CI
+           # refuses to publish a tag that disagrees with it.
+           version="0.1.$(git -C "$ROOT" rev-list --count HEAD)"
+           echo "==> v$version at $(git -C "$ROOT" rev-parse --short HEAD)"
+           git -C "$ROOT" tag "v$version" HEAD
+           git -C "$ROOT" push origin "v$version" ;;
 
   usb)     rm -f "$DEVICE_FILE"
            echo "==> forgetting the wireless address; back to USB" ;;

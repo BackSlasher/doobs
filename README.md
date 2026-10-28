@@ -170,8 +170,14 @@ Tag a commit and CI builds, signs and publishes the APK:
 
 ```sh
 jj bookmark set main -r @- && jj git push --bookmark main
-git tag v0.1.14 "$(jj log -r @- --no-graph -T 'commit_id')" && git push origin v0.1.14
+./dev tag
 ```
+
+`./dev tag` computes the tag from the commit count rather than letting you
+choose one. Choosing by hand published `doobs-0.1.15.apk` containing 0.1.16,
+because `versionName` is derived from the count at build time and the tag was
+picked from a stale reading of it. CI now refuses a tag that disagrees with
+the version it built.
 
 The APK then appears at
 [releases](https://github.com/BackSlasher/doobs/releases) as a plain HTTPS
