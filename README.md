@@ -192,6 +192,17 @@ Because CI signs with the same key as `./dev release`, a release installs
 over a locally built one as an ordinary upgrade — keeping app data and the
 assistant-role selection.
 
+Each CI-built APK carries a signed build-provenance attestation, so a
+`doobs-*.apk` found anywhere can be traced to the commit it was built from:
+
+```sh
+gh attestation verify doobs-0.1.15.apk --repo BackSlasher/doobs
+```
+
+Nothing in the install path checks it — not Obtainium, not Android — so it is
+provenance rather than protection, and it says nothing about whether the key
+in CI should have been trusted. Locally built APKs carry none.
+
 ## Releases
 
 ```sh

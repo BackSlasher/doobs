@@ -11,6 +11,9 @@ on:
 
 permissions:
   contents: write
+  # Build provenance is signed through Sigstore, which needs an OIDC token.
+  id-token: write
+  attestations: write
 
 jobs:
   apk:
@@ -70,6 +73,16 @@ jobs:
           fi
           cp app/build/outputs/apk/release/app-release.apk "doobs-$version.apk"
           echo "apk=doobs-$version.apk" >> "$GITHUB_OUTPUT"
+
+      # Ties this exact APK digest to this repo, workflow and commit, so a
+      # doobs-*.apk found anywhere can be proved to have come from the
+      # published source. Nothing in the install path checks this — not
+      # Obtainium, not Android — so it is provenance, not protection.
+      #   gh attestation verify doobs-0.1.15.apk --repo BackSlasher/doobs
+      - name: Attest provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ steps.name.outputs.apk }}
 
       - name: Publish
         if: startsWith(github.ref, 'refs/tags/')
